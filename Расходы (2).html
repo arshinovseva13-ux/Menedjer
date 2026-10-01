@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Расходы</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2a2a;--mute:#7b8684;--line:#e6e2d9;--acc:#0f7b6c;--acc-ink:#fff;--bad:#c2410c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a1a;--card:#1b2625;--ink:#e8efee;--mute:#8a9896;--line:#2a3837;--acc:#3ecfb8;--acc-ink:#07201c;--bad:#fb923c}}
+:root[data-theme="dark"]{--bg:#121a1a;--card:#1b2625;--ink:#e8efee;--mute:#8a9896;--line:#2a3837;--acc:#3ecfb8;--acc-ink:#07201c;--bad:#fb923c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:480px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative}
+main{flex:1;overflow-y:auto;padding:16px 16px 90px}
+h1{font-size:15px;font-weight:600;color:var(--mute);margin:0 0 4px}
+.total{font-size:40px;font-weight:700;letter-spacing:-1px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:4px 0 10px}
+.bar i{display:block;height:100%;background:var(--acc)}
+.day{font-size:13px;color:var(--mute);margin:16px 4px 6px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:6px}
+.item small{color:var(--mute);display:block}
+.amt{font-weight:600;text-align:right;white-space:nowrap}
+.amt small{font-weight:400}
+.del{border:0;background:none;color:var(--mute);font-size:20px;padding:4px 8px}
+nav{position:absolute;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;border:0;background:none;color:var(--mute);font:600 13px system-ui;padding:10px 0;border-radius:10px}
+nav button.on{color:var(--acc)}
+.fab{position:absolute;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:28px;border:0;background:var(--acc);color:var(--acc-ink);font-size:30px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+label{font-size:13px;color:var(--mute);display:block;margin:0 0 4px 2px}
+.btn{width:100%;border:0;background:var(--acc);color:var(--acc-ink);font:600 16px system-ui;padding:14px;border-radius:12px}
+.btn.ghost{background:none;color:var(--bad);border:1px solid var(--line)}
+.two{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+.sheet{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:5}
+.sheet.open{display:flex}
+.sheet>div{background:var(--card);width:100%;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:90%;overflow-y:auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chips button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:20px;padding:7px 12px;font:14px system-ui}
+.chips button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.empty{text-align:center;color:var(--mute);padding:40px 10px}
+.seg{display:flex;gap:6px;margin-bottom:10px}
+.seg button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px;font:14px system-ui}
+.seg button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.rate{display:grid;grid-template-columns:60px 1fr;gap:10px;align-items:center}
+.rate input{margin:0 0 8px}
+.note{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <button class="fab" id="fab" aria-label="Добавить расход">+</button>
+  <nav id="nav">
+    <button data-t="exp" class="on">Расходы</button>
+    <button data-t="cur">Валюты</button>
+    <button data-t="set">Настройки</button>
+  </nav>
+  <div class="sheet" id="sheet"><div id="form"></div></div>
+</div>
+<script>
+const CATS=["Еда","Транспорт","Жильё","Покупки","Развлечения","Здоровье","Другое"];
+const CURS=["RUB","USD","EUR","KZT","UAH","BYN","GBP","TRY","CNY"];
+// сколько единиц валюты в 1 USD — примерные значения, меняются вручную
+const DEF_RATES={USD:1,EUR:0.86,RUB:85,KZT:520,UAH:41,BYN:3.1,GBP:0.75,TRY:41,CNY:7.1};
+const SYM={RUB:"₽",USD:"$",EUR:"€",KZT:"₸",UAH:"₴",BYN:"Br",GBP:"£",TRY:"₺",CNY:"¥"};
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let S={exp:load("exp",[]),rates:{...DEF_RATES,...load("rates",{})},base:load("base","RUB"),theme:load("theme","auto")};
+let tab="exp",monthOffset=0;
+const $=s=>document.querySelector(s);
+const conv=(a,f,t)=>a/S.rates[f]*S.rates[t];
+const fmt=(n,c)=>n.toLocaleString("ru-RU",{maximumFractionDigits:2})+" "+(SYM[c]||c);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+function applyTheme(){const r=document.documentElement;if(S.theme==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",S.theme)}
+function persist(){save("exp",S.exp);save("rates",S.rates);save("base",S.base);save("theme",S.theme)}
+
+function monthRange(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+monthOffset);return d}
+function viewExp(){
+  const m=monthRange(),key=m.getFullYear()+"-"+String(m.getMonth()+1).padStart(2,"0");
+  const list=S.exp.filter(e=>e.date.startsWith(key)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const total=list.reduce((s,e)=>s+conv(e.amount,e.cur,S.base),0);
+  const by={};list.forEach(e=>by[e.cat]=(by[e.cat]||0)+conv(e.amount,e.cur,S.base));
+  const cats=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  const name=m.toLocaleDateString("ru-RU",{month:"long",year:"numeric"});
+  let h=`<div class="row"><button class="del" data-m="-1" aria-label="Назад">‹</button><h1>${name}</h1><button class="del" data-m="1" aria-label="Вперёд">›</button></div>
+  <div class="total">${fmt(total,S.base)}</div>`;
+  if(cats.length){h+=`<div class="card">`+cats.map(([c,v])=>`<div class="row"><span>${c}</span><span>${fmt(v,S.base)}</span></div><div class="bar"><i style="width:${v/total*100}%"></i></div>`).join("")+`</div>`}
+  if(!list.length)h+=`<div class="empty">В этом месяце расходов нет.<br>Нажмите «+», чтобы добавить.</div>`;
+  let last="";
+  list.forEach(e=>{
+    if(e.date!==last){last=e.date;h+=`<div class="day">${new Date(e.date+"T00:00").toLocaleDateString("ru-RU",{day:"numeric",month:"long",weekday:"short"})}</div>`}
+    const other=e.cur!==S.base?`<small>≈ ${fmt(conv(e.amount,e.cur,S.base),S.base)}</small>`:"";
+    h+=`<div class="item row"><div><b>${e.cat}</b>${e.note?`<small>${esc(e.note)}</small>`:""}</div><div class="row"><div class="amt">${fmt(e.amount,e.cur)}${other}</div><button class="del" data-del="${e.id}" aria-label="Удалить">×</button></div></div>`;
+  });
+  return h;
+}
+function viewCur(){
+  return `<h1>Конвертер</h1><div class="card">
+  <div class="two"><div><label>Сумма</label><input id="ca" type="number" inputmode="decimal" value="100"></div>
+  <div><label>Из</label><select id="cf">${CURS.map(c=>`<option ${c==="USD"?"selected":""}>${c}</option>`).join("")}</select></div></div>
+  <label>В</label><select id="ct">${CURS.map(c=>`<option ${c===S.base?"selected":""}>${c}</option>`).join("")}</select>
+  <div class="total" id="cr" style="font-size:30px;margin:6px 0 0"></div></div>
+  <p class="note">Курсы примерные и задаются вручную: измените их в настройках.</p>`;
+}
+function calc(){const a=parseFloat($("#ca").value)||0;$("#cr").textContent="≈ "+fmt(conv(a,$("#cf").value,$("#ct").value),$("#ct").value)}
+function viewSet(){
+  return `<h1>Тема</h1><div class="seg">${[["auto","Авто"],["light","Светлая"],["dark","Тёмная"]].map(([k,n])=>`<button data-th="${k}" class="${S.theme===k?"on":""}">${n}</button>`).join("")}</div>
+  <h1>Основная валюта</h1><select id="bs">${CURS.map(c=>`<option ${c===S.base?"selected":""}>${c}</option>`).join("")}</select>
+  <h1>Курсы: единиц в 1 USD</h1><div class="card">${CURS.filter(c=>c!=="USD").map(c=>`<div class="rate"><b>${c}</b><input data-r="${c}" type="number" inputmode="decimal" step="any" value="${S.rates[c]}"></div>`).join("")}
+  <button class="btn ghost" id="rr">Сбросить курсы</button></div>
+  <button class="btn ghost" id="clr">Удалить все расходы</button>`;
+}
+function render(){
+  $("#view").innerHTML=tab==="exp"?viewExp():tab==="cur"?viewCur():viewSet();
+  $("#fab").style.display=tab==="exp"?"block":"none";
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+  if(tab==="cur")calc();
+}
+function openForm(){
+  let cat=CATS[0];
+  $("#form").innerHTML=`<h1>Новый расход</h1>
+  <div class="two"><div><label>Сумма</label><input id="fa" type="number" inputmode="decimal" placeholder="0"></div>
+  <div><label>Валюта</label><select id="fc">${CURS.map(c=>`<option ${c===S.base?"selected":""}>${c}</option>`).join("")}</select></div></div>
+  <label>Категория</label><div class="chips" id="fch">${CATS.map((c,i)=>`<button data-c="${c}" class="${i?"":"on"}">${c}</button>`).join("")}</div>
+  <label>Заметка</label><input id="fn" placeholder="Необязательно" maxlength="60">
+  <label>Дата</label><input id="fd" type="date" value="${today()}">
+  <button class="btn" id="fs">Сохранить</button>`;
+  $("#sheet").classList.add("open");
+  $("#fch").onclick=e=>{const b=e.target.closest("button");if(!b)return;cat=b.dataset.c;[...$("#fch").children].forEach(x=>x.classList.toggle("on",x===b))};
+  $("#fs").onclick=()=>{
+    const a=parseFloat($("#fa").value);
+    if(!(a>0)){$("#fa").focus();return}
+    S.exp.push({id:Date.now(),amount:a,cur:$("#fc").value,cat,note:$("#fn").value.trim(),date:$("#fd").value||today()});
+    persist();monthOffset=0;closeForm();render();
+  };
+  setTimeout(()=>$("#fa").focus(),50);
+}
+function closeForm(){$("#sheet").classList.remove("open")}
+$("#fab").onclick=openForm;
+$("#sheet").onclick=e=>{if(e.target.id==="sheet")closeForm()};
+$("#nav").onclick=e=>{const b=e.target.closest("button");if(b){tab=b.dataset.t;render()}};
+$("#view").addEventListener("click",e=>{
+  const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.m){monthOffset+=+t.dataset.m;render()}
+  else if(t.dataset.del){S.exp=S.exp.filter(x=>x.id!=t.dataset.del);persist();render()}
+  else if(t.dataset.th){S.theme=t.dataset.th;applyTheme();persist();render()}
+  else if(t.id==="rr"){S.rates={...DEF_RATES};persist();render()}
+  else if(t.id==="clr"){if(confirm("Удалить все расходы? Это нельзя отменить.")){S.exp=[];persist();render()}}
+});
+$("#view").addEventListener("input",e=>{
+  const t=e.target;
+  if(t.id==="ca")calc();
+  else if(t.dataset.r){const v=parseFloat(t.value);if(v>0){S.rates[t.dataset.r]=v;persist()}}
+});
+$("#view").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="cf"||t.id==="ct")calc();
+  else if(t.id==="bs"){S.base=t.value;persist()}
+});
+applyTheme();render();
+</script>
+</body>
+</html>
